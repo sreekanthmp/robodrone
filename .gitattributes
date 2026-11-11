@@ -1,0 +1,6 @@
+# Always check files out with LF line endings, on every platform.
+#
+# Without this, Git for Windows converts to CRLF on checkout, and shell scripts
+# (scripts/*.sh) then fail under WSL/Linux with errors like
+#   /usr/bin/env: 'bash\r': No such file or directory
+* text=auto eol=lf
