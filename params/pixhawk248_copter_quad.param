@@ -25,6 +25,11 @@ SERIAL2_BAUD,921         # 921 = 921600 baud. Drop to 115 if the link is flaky (
 # SRn_* uses the n-th MAVLink port. With USB = SR0, TELEM1 = SR1, TELEM2 = SR2
 # this is correct. If you changed which serial ports speak MAVLink, check which
 # SRn your TELEM2 port got. No data in /mavros/* topics usually means this.
+#
+# The bringup launch file also requests streams over the link itself
+# (request_stream_rates). THAT route was verified against ArduPilot SITL; these
+# SR2_* values are the autopilot-side equivalent (they work with no companion
+# running) and have NOT been verified on a real board.
 SR2_RAW_SENS,5
 SR2_EXT_STAT,2
 SR2_RC_CHAN,2

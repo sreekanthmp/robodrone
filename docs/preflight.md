@@ -6,7 +6,10 @@ worked".
 ## Stage 0: software only (no hardware)
 
 - [ ] `python3 -m pytest` in `ros2_ws/src/robodrone_control` passes.
-- [ ] ArduPilot SITL + MAVROS bring-up works ([ros2.md](ros2.md)).
+- [ ] `scripts/check_mavros_interfaces.sh` passes (MAVROS exposes what the
+      nodes use).
+- [ ] `scripts/sim_e2e.sh` prints `PASS` (ArduPilot SITL + MAVROS + demo,
+      [ros2.md](ros2.md)).
 - [ ] `offboard_demo` dry run succeeds, then flies the square **in SITL**,
       lands and exits 0.
 - [ ] You flipped the SITL mode away from GUIDED mid-square and the demo
@@ -48,6 +51,17 @@ ros2 run robodrone_control offboard_demo --ros-args \
 
 - [ ] Abort test in the air: flip the mode switch away from `GUIDED`; confirm
       you are flying the vehicle manually and the node has stopped.
+
+**Know where your throttle stick is when you take over.** Leaving `GUIDED`
+hands the aircraft to *your sticks*, and in `LOITER`/`ALT_HOLD` the throttle
+stick sets climb rate: centred holds altitude, low descends. In the simulator
+(which had no transmitter attached, so the "stick" sat at its minimum) flipping
+from `GUIDED` to `LOITER` mid-flight made the vehicle descend at about
+2.5 m/s and hit the ground. The demo itself behaved correctly, since it stopped
+and sent nothing, but the aircraft did what the stick said. Practise the
+take-over with the throttle near centre, and hold the transmitter that way
+during every autonomous flight. If you would rather it *stop and hover*, put
+`LOITER` on the take-over switch position and centre the stick first.
 
 ## Every flight
 

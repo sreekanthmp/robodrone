@@ -12,6 +12,10 @@ ArduPilot SITL (see scripts/sitl.sh, which forwards MAVLink to UDP 14560):
 
     ros2 launch robodrone_bringup bringup.launch.py fcu_url:=udp://:14560@
 
+It also starts ``request_stream_rates`` (``stream_rate:=0`` disables it), because
+ArduPilot only streams telemetry it has been asked for: with MAVROS alone on the
+link no pose/battery/GPS topics appear otherwise.
+
 This wraps MAVROS' own ``apm.launch`` so its ArduPilot plugin list and config
 are used unchanged. The ``fcu_url`` / ``gcs_url`` argument names are those of
 MAVROS 2.x; confirm against your install with
@@ -24,6 +28,7 @@ from launch.conditions import IfCondition
 from launch.launch_description_sources import AnyLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 
@@ -46,6 +51,15 @@ def generate_launch_description() -> LaunchDescription:
         condition=IfCondition(monitor),
     )
 
+    # ArduPilot only streams telemetry it has been asked for; without this the
+    # /mavros/local_position/pose etc. topics stay silent (seen with SITL).
+    stream_requester = Node(
+        package="robodrone_control",
+        executable="request_stream_rates",
+        output="screen",
+        parameters=[{"rate": ParameterValue(LaunchConfiguration("stream_rate"), value_type=float)}],
+    )
+
     return LaunchDescription(
         [
             DeclareLaunchArgument(
@@ -64,7 +78,14 @@ def generate_launch_description() -> LaunchDescription:
                 default_value="true",
                 description="Also start the status_monitor node",
             ),
+            DeclareLaunchArgument(
+                "stream_rate",
+                default_value="10",
+                description="Hz at which to request all telemetry streams from ArduPilot "
+                "(0 = don't request; rely on the SRn_* parameters instead)",
+            ),
             mavros,
+            stream_requester,
             status_monitor,
         ]
     )

@@ -20,10 +20,19 @@ work wherever MAVROS is packaged, but are untested here.
 > code 1. Run `scripts/check_mavros_interfaces.sh` to repeat that on your
 > machine.
 >
-> **Not yet verified:** anything against an actual autopilot, that is ArduPilot
-> SITL or the real Pixhawk (arming, GUIDED takeoff, the square, landing). The
-> Dockerfile has never been built. Stage 0 in [preflight.md](preflight.md) is
-> how you close that gap, in simulation, before any hardware flies.
+> **Also verified against ArduPilot SITL (Copter 4.7.2, a full-feature
+> simulator build, not the `Pixhawk1-1M` firmware):** `offboard_demo` goes
+> GUIDED, arm, takeoff, flies the square, lands, disarms and exits 0. The
+> vehicle really moved (climbed to 3.08 m when asked for 3.0; traced a 3 m
+> square). Ctrl-C mid-flight makes it command LAND and the vehicle lands.
+> Leaving GUIDED mid-flight makes it stop and send nothing further.
+>
+> **Not verified:** the real Pixhawk 2.4.8, and the `Pixhawk1-1M` firmware
+> itself (SITL runs a different, full-feature build, so it cannot show 1 MB
+> feature cuts or flash fit). The Dockerfile has never been built. SITL has no
+> real RC transmitter, so take-over behaviour on sticks is only partly
+> exercised; see [preflight.md](preflight.md). Run the staged plan there before
+> any hardware flies.
 
 ## Install
 
@@ -71,15 +80,25 @@ source install/setup.bash
 
 ## Simulate first (no hardware)
 
-Three terminals.
+### One command (verified)
+
+[`scripts/sim_e2e.sh`](../scripts/sim_e2e.sh) does everything below headless
+(no MAVProxy, no GUI): starts SITL and MAVROS, waits for a position estimate,
+flies the demo, prints `PASS`/`FAIL`, and stops what it started. It passed from
+a cold start in about 70 s. It needs an ArduPilot checkout with SITL built
+(`./waf configure --board sitl && ./waf copter`) and `SITL_PYTHON` pointing at
+a Python that has ArduPilot's dependencies (its `install-prereqs-ubuntu.sh`
+sets that up). Tested against ArduPilot **Copter 4.7.2**.
+
+### By hand (same route the script takes; three terminals)
 
 ```bash
-# 1. ArduPilot SITL (simulated ArduCopter) -> MAVLink on UDP 14560
-scripts/sitl.sh
-#    wait for "EKF3 IMU0 is using GPS" (30-60 s)
+# 1. SITL, headless, serial port 0 on TCP 5760
+cd ~/ardupilot && Tools/autotest/sim_vehicle.py -v ArduCopter -f quad --no-mavproxy --no-rebuild
+#    ~35 s until the log shows the EKF is using GPS
 
-# 2. MAVROS + status monitor
-ros2 launch robodrone_bringup bringup.launch.py fcu_url:=udp://:14560@
+# 2. MAVROS + stream requester + status monitor
+ros2 launch robodrone_bringup bringup.launch.py fcu_url:=tcp://127.0.0.1:5760
 
 # 3. Dry run: checks the link and position stream, touches nothing
 ros2 run robodrone_control offboard_demo
@@ -88,15 +107,14 @@ ros2 run robodrone_control offboard_demo --ros-args -p enable_flight:=true
 ```
 
 Expected: `phase: ... -> SET_GUIDED -> ARM -> TAKEOFF_CMD -> CLIMB -> SQUARE ->
-LAND_CMD -> WAIT_DISARM`, then `landed and disarmed` and exit code 0.
+LAND_CMD -> WAIT_DISARM`, then `landed and disarmed` and exit code 0 (about
+20 s of flight).
 
-**Automated version (written, not yet run end to end):**
-[`scripts/sim_e2e.sh`](../scripts/sim_e2e.sh) is meant to do all of the above
-headless (no MAVProxy, no GUI): start SITL and MAVROS, wait for a position
-estimate, fly the demo, and print `PASS`/`FAIL`. It needs an
-ArduPilot checkout with SITL built (`./waf configure --board sitl && ./waf
-copter`) and, for SITL's own Python dependencies, `SITL_PYTHON` pointing at an
-interpreter that has them (ArduPilot's `install-prereqs-ubuntu.sh` sets that up).
+### With a ground station (not yet run)
+
+[`scripts/sitl.sh`](../scripts/sitl.sh) starts SITL *with* MAVProxy's console and
+map and forwards MAVLink to UDP 14560 so a ground station can share the link
+(`fcu_url:=udp://:14560@`). That route is written but has not been run.
 
 ## On the real vehicle
 
@@ -114,7 +132,7 @@ You should see a line per second from `status_monitor` like
 | You see | Likely cause |
 |---|---|
 | `FCU is not connected` | wrong `fcu_url`/baud, TX/RX not crossed, no shared GND, `SERIAL2_*` not set, FC not rebooted after loading params |
-| connected but no telemetry (warns after 10 s) | `SR2_*` stream rates; or call `/mavros/set_stream_rate` |
+| connected but no telemetry (warns after 10 s) | Nothing asked ArduPilot to stream. `request_stream_rates` (started by bringup unless `stream_rate:=0`) does it; on hardware also set the `SR2_*` parameters. By hand: `ros2 service call /mavros/set_stream_rate mavros_msgs/srv/StreamRate "{stream_id: 0, message_rate: 10, on_off: true}"` |
 | MAVROS dies at start about GeographicLib | datasets not installed (see above) |
 | arming rejected | read the ArduPilot pre-arm message (`ros2 topic echo /mavros/statustext/recv`); fix the cause, never disable `ARMING_CHECK` |
 
@@ -147,6 +165,13 @@ mistake to avoid.
 
 ## The nodes
 
+* **`request_stream_rates`** - asks ArduPilot to stream all telemetry
+  (`/mavros/set_stream_rate`, stream 0) once MAVROS reports the FCU connected,
+  again after every reconnect, and every `refresh_period` (30 s). **Needed:**
+  against ArduPilot SITL, with MAVROS alone on the link, no pose/battery/GPS
+  topics appeared until this request was made. Parameters: `rate` (Hz, default
+  10; `0` disables), `refresh_period`. Started by the bringup launch file;
+  `stream_rate:=0` turns it off if you rely on the `SRn_*` parameters.
 * **`status_monitor`** - one line a second: mode, armed, battery, GPS, position.
   Warns if connected but nothing is streaming.
 * **`offboard_demo`** - GUIDED takeoff, a square, land. **Dry run unless

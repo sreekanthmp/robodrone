@@ -61,9 +61,12 @@ cleanup() {
 trap cleanup EXIT
 
 echo "== starting ArduPilot SITL (headless, no MAVProxy)"
-( cd "$WORK" && setsid "$SITL_PYTHON" "$SIM_VEHICLE" -v ArduCopter -f quad \
-    --no-mavproxy --no-rebuild >"$WORK/sitl.log" 2>&1 & echo $! >"$WORK/sitl.pid" )
-PIDS+=("$(cat "$WORK/sitl.pid")")
+# exec inside the subshell: $! must be the real process (= its own session and
+# process-group leader). Backgrounding a "cd && setsid ..." list instead gives
+# the PID of a wrapper subshell, and cleanup then misses the simulator.
+( cd "$WORK" && exec setsid "$SITL_PYTHON" "$SIM_VEHICLE" -v ArduCopter -f quad \
+    --no-mavproxy --no-rebuild ) >"$WORK/sitl.log" 2>&1 &
+PIDS+=("$!")
 
 echo "== starting MAVROS ($FCU_URL)"
 setsid ros2 launch robodrone_bringup bringup.launch.py fcu_url:="$FCU_URL" monitor:=false \

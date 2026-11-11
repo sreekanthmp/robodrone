@@ -182,6 +182,7 @@ def _srv(name: str, **fields):
 
 SetMode = _srv("SetMode", base_mode=0, custom_mode="")
 CommandBool = _srv("CommandBool", value=False)
+StreamRate = _srv("StreamRate", stream_id=0, message_rate=0, on_off=False)
 CommandTOL = _srv(
     "CommandTOL", min_pitch=0.0, yaw=0.0, latitude=0.0, longitude=0.0, altitude=0.0
 )
@@ -215,7 +216,11 @@ def build_modules() -> dict[str, types.ModuleType]:
         "mavros_msgs": mod("mavros_msgs"),
         "mavros_msgs.msg": mod("mavros_msgs.msg", State=State),
         "mavros_msgs.srv": mod(
-            "mavros_msgs.srv", SetMode=SetMode, CommandBool=CommandBool, CommandTOL=CommandTOL
+            "mavros_msgs.srv",
+            SetMode=SetMode,
+            CommandBool=CommandBool,
+            CommandTOL=CommandTOL,
+            StreamRate=StreamRate,
         ),
     }
 

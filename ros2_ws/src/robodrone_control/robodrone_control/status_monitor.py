@@ -95,8 +95,9 @@ class StatusMonitor(Node):
         ):
             self._warned = True
             self.get_logger().warn(
-                "connected but no telemetry streams: set the SR2_* stream-rate parameters "
-                "on the autopilot, or call /mavros/set_stream_rate"
+                "connected but no telemetry streams: is request_stream_rates running "
+                "(bringup starts it unless stream_rate:=0)? Otherwise set the SR2_* "
+                "stream-rate parameters on the autopilot"
             )
 
 

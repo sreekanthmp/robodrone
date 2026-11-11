@@ -27,32 +27,39 @@ Details and the upgrade path to a newer board: [docs/firmware.md](docs/firmware.
 | [docs/ros2.md](docs/ros2.md) | Install, bring-up, simulate, topics, tests |
 | [docs/preflight.md](docs/preflight.md) | Staged testing plan and pre-flight checklist |
 | [params/](params/pixhawk248_copter_quad.param) | Baseline ArduCopter parameters (review before loading) |
-| [ros2_ws/src/robodrone_bringup](ros2_ws/src/robodrone_bringup) | Launch file: MAVROS + monitor |
-| [ros2_ws/src/robodrone_control](ros2_ws/src/robodrone_control) | `status_monitor`, `offboard_demo`, tests |
-| [scripts/sitl.sh](scripts/sitl.sh) | ArduPilot SITL wired to MAVROS (**not yet run**) |
-| [scripts/sim_e2e.sh](scripts/sim_e2e.sh) | Headless SITL + MAVROS + demo test (**written, not yet run**) |
+| [ros2_ws/src/robodrone_bringup](ros2_ws/src/robodrone_bringup) | Launch file: MAVROS + stream requester + monitor |
+| [ros2_ws/src/robodrone_control](ros2_ws/src/robodrone_control) | `status_monitor`, `offboard_demo`, `request_stream_rates`, tests |
+| [scripts/sim_e2e.sh](scripts/sim_e2e.sh) | Headless ArduPilot SITL + MAVROS + demo flight; prints PASS/FAIL (**run and passing**) |
+| [scripts/sitl.sh](scripts/sitl.sh) | Interactive SITL with MAVProxy console/map, for use with a ground station (**not yet run**) |
 | [scripts/check_mavros_interfaces.sh](scripts/check_mavros_interfaces.sh) | Checks MAVROS exposes every topic/service the nodes use; needs no FC or simulator |
 | [docker/Dockerfile](docker/Dockerfile) | ROS 2 Jazzy + MAVROS + this workspace |
 
 ## Quick start (simulation)
 
 ```bash
-scripts/sitl.sh                                                          # terminal 1
-ros2 launch robodrone_bringup bringup.launch.py fcu_url:=udp://:14560@   # terminal 2
-ros2 run robodrone_control offboard_demo                                 # terminal 3: dry run
+# ROS 2 + MAVROS sourced, workspace built, ArduPilot SITL built (see docs/ros2.md)
+scripts/sim_e2e.sh     # starts SITL + MAVROS, flies the demo, prints PASS/FAIL
 ```
 
-Full steps, including the real vehicle: [docs/ros2.md](docs/ros2.md).
+Step-by-step, by hand, and on the real vehicle: [docs/ros2.md](docs/ros2.md).
 
 ## What has and hasn't been verified
 
 **Verified**
 
-* The plain-Python logic and the `offboard_demo` state machine pass 33 unit
-  tests (`cd ros2_ws/src/robodrone_control && python3 -m pytest`), including
+* The plain-Python logic, the `offboard_demo` state machine and the
+  `request_stream_rates` node pass 42 unit tests
+  (`cd ros2_ws/src/robodrone_control && python3 -m pytest`), including
   pilot-override, rejected commands, timeouts, failed-LAND and Ctrl-C paths.
   The tests were mutation-checked: deliberately breaking the safety logic makes
   them fail.
+* **Against ArduPilot SITL (Copter 4.7.2) through real MAVROS**, run from a cold
+  start by `scripts/sim_e2e.sh`: the demo goes GUIDED, arms, takes off, flies a
+  square, lands, disarms and exits 0. Measured, not just reported: it climbed to
+  3.08 m when asked for 3.0 and traced a 3 m square. Ctrl-C mid-flight makes it
+  command LAND and the vehicle lands. Leaving GUIDED mid-flight makes it stop
+  and send nothing further. This run also found that ArduPilot streams nothing
+  to MAVROS unless asked, which is why `request_stream_rates` exists.
 * Against a **real ROS 2 Jazzy + MAVROS 2.x** install, with no flight
   controller: both packages build with colcon; the launch file resolves
   MAVROS' `apm.launch`; MAVROS starts; every topic and service the nodes use
@@ -64,10 +71,13 @@ Full steps, including the real vehicle: [docs/ros2.md](docs/ros2.md).
 
 **Not verified**
 
-* Anything involving an actual autopilot: arming, GUIDED takeoff, the square,
-  landing, the pilot-override path in a real vehicle. That needs ArduPilot SITL
-  or the real Pixhawk.
-* The Dockerfile (never built), and the `SR2_*`/TELEM2 parameter values.
+* **The real Pixhawk 2.4.8.** SITL is a full-feature simulator build, not the
+  `Pixhawk1-1M` firmware, so it cannot show the 1 MB feature cuts or whether the
+  firmware fits in flash. It also has no RC transmitter: flipping from GUIDED to
+  LOITER in SITL made the vehicle descend at ~2.5 m/s because the simulated
+  throttle stick sat at minimum (see [docs/preflight.md](docs/preflight.md)).
+* The Dockerfile (never built), `scripts/sitl.sh` (the MAVProxy route), and the
+  `SR2_*`/TELEM2 parameter values.
 * That the `Pixhawk1-1M` build compiles and fits in 1 MB at 4.7.2.
 
 Run [Stage 0 of the test plan](docs/preflight.md) in simulation before putting

@@ -103,7 +103,10 @@ numbers).
 
 **You can always take over by leaving GUIDED.** The demo node treats any mode
 change away from GUIDED as "the pilot has taken control" and stops sending
-anything.
+anything. (Checked against ArduPilot SITL: it stops, does not command LAND or
+GUIDED again, and the mode stays where you put it.) What the *aircraft* then
+does depends on your sticks; keep the throttle stick near centre, see
+[preflight.md](preflight.md).
 
 ## 5. GUIDED mode needs a position estimate
 
