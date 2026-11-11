@@ -10,10 +10,12 @@ This is a build guide, not a shopping list with SKUs. Part numbers go stale and
 
 | Fact | Consequence |
 |---|---|
-| Many of these chips only expose **1 MB** of the 2 MB flash | Use ArduPilot's **`Pixhawk1-1M`** build (safe on 1 MB *and* 2 MB boards). It has features trimmed to fit. See [firmware.md](firmware.md). |
+| Many of these chips only expose **1 MB** of the 2 MB flash | Use ArduPilot's **`Pixhawk1-1M`** build, which has features trimmed to fit. **It refuses to run on a board with a true 2 MB chip** (`2M flash - use Pixhawk1 firmware`); in that case use the full `Pixhawk1` build. Try 1M first: it tells you if it's the wrong one. See [firmware.md](firmware.md). |
 | It is an old board | **Current PX4 does not officially support FMUv2.** ArduPilot is the practical firmware. |
 | No native DDS / micro-ROS on a 1 MB build | The ROS 2 link is **MAVROS over MAVLink** on a companion computer, not a direct DDS bridge. |
-| Main outputs go through the IO co-processor | Use **standard PWM ESCs** (optionally OneShot125). DShot is not available on these outputs. |
+| Main outputs go through the IO co-processor | Use **standard PWM ESCs** (optionally OneShot125). The 1M build explicitly disables DShot on the IO outputs. |
+| The 1M build only compiles in **u-blox** (and NMEA) GPS drivers | Buy a u-blox-based GPS (the common Neo-M8N class is fine). Other GPS types won't be recognised. |
+| The 1M build drops `GUIDED_NOGPS`, `FOLLOW`, `FLOWHOLD`, `ZIGZAG`, OSD, MSP and gimbal mounts | **Outdoor flight with GPS** is the supported path for the ROS 2 demo. |
 | Clone quality varies | Budget for a real power module, an **external GPS+compass**, and bench-testing the board before trusting it. Treat the prototype as disposable. |
 
 If you outgrow it, a newer Pixhawk-class board (6C, Cube Orange, ...) gets you

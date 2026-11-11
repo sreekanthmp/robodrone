@@ -12,12 +12,18 @@ and back. On this board it is the only sensible ROS 2 path (see
 Targets **Ubuntu 24.04 + ROS 2 Jazzy + MAVROS 2.x**. Other ROS 2 distros should
 work wherever MAVROS is packaged, but are untested here.
 
-> **Status:** the Python logic and the node state machine are unit-tested
-> (see "Tests" below). The launch file, Dockerfile, and the nodes' behaviour
-> against real MAVROS were **not run** where this was written (no ROS 2
-> installation, ArduPilot site unreachable). Stage 0 in
-> [preflight.md](preflight.md) is how you close that gap, in simulation, before
-> any hardware flies.
+> **Status.** Verified against a real ROS 2 Jazzy + MAVROS 2.x install, with no
+> flight controller attached: both packages build with colcon, the launch file
+> resolves MAVROS' `apm.launch`, MAVROS starts, every topic and service these
+> nodes use exists under `/mavros/...` with compatible QoS, `status_monitor`
+> reports "FCU not connected", and `offboard_demo` times out cleanly with exit
+> code 1. Run `scripts/check_mavros_interfaces.sh` to repeat that on your
+> machine.
+>
+> **Not yet verified:** anything against an actual autopilot, that is ArduPilot
+> SITL or the real Pixhawk (arming, GUIDED takeoff, the square, landing). The
+> Dockerfile has never been built. Stage 0 in [preflight.md](preflight.md) is
+> how you close that gap, in simulation, before any hardware flies.
 
 ## Install
 
@@ -32,6 +38,27 @@ sudo /opt/ros/jazzy/lib/mavros/install_geographiclib_datasets.sh
 # ModemManager on a desktop install, remove or mask ModemManager.
 sudo usermod -aG dialout "$USER"
 ```
+
+### No apt access, or not Ubuntu 24.04? Use RoboStack (conda)
+
+Verified to work: ROS 2 Jazzy and MAVROS from conda-forge/RoboStack, with no
+root and no ROS apt repository (this is how the checks in the status note
+above were run).
+
+```bash
+# get micromamba from conda-forge (https://mamba.readthedocs.io), then:
+micromamba create -n ros_jazzy -c conda-forge -c robostack-jazzy --override-channels \
+  ros-jazzy-ros-base ros-jazzy-mavros ros-jazzy-mavros-extras ros-jazzy-mavros-msgs \
+  colcon-common-extensions pytest
+micromamba activate ros_jazzy
+```
+
+The GeographicLib installer then lives at
+`$CONDA_PREFIX/lib/mavros/install_geographiclib_datasets.sh`. It needs root and
+downloads from SourceForge. If you can't use it, put a real
+`geoids/egm96-5.pgm` in any directory and point `GEOGRAPHICLIB_DATA` at that
+directory. **Use real EGM96 data on a real vehicle**; a placeholder file gives
+wrong altitudes.
 
 ## Build this workspace
 
@@ -96,11 +123,19 @@ You should see a line per second from `status_monitor` like
 | `/mavros/cmd/arming` | `mavros_msgs/CommandBool` | |
 | `/mavros/cmd/takeoff` | `mavros_msgs/CommandTOL` | `altitude` in metres above the home position |
 
-QoS gotcha: MAVROS publishes telemetry as **best-effort**. `ros2 topic echo`
-needs `--qos-reliability best_effort` on those topics, and your own subscribers
-should use `qos_profile_sensor_data`. The demo's *setpoint publisher* is the
-opposite: it must stay default/reliable, because MAVROS' setpoint subscribers
-are reliable and a best-effort publisher will never connect.
+QoS gotcha (checked with `ros2 topic info -v` against a live MAVROS 2.x):
+
+* MAVROS publishes telemetry (`local_position/pose`, `battery`,
+  `global_position/raw/fix`) as **best-effort**. `ros2 topic echo` needs
+  `--qos-reliability best_effort` on those topics, and your own subscribers
+  should use `qos_profile_sensor_data`, as the nodes here do.
+* `/mavros/state` is **reliable + transient-local**; a default subscriber works.
+* MAVROS' `setpoint_position/local` subscriber is **best-effort**, so a default
+  (reliable) publisher connects to it fine.
+
+A subscriber that asks for *more* than the publisher offers (reliable
+subscriber on a best-effort publisher) silently receives nothing; that is the
+mistake to avoid.
 
 ## The nodes
 

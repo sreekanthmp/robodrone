@@ -7,25 +7,49 @@ family), and PX4's native ROS 2 path (uXRCE-DDS) needs more flash than a 1 MB
 board has anyway. ArduPilot still ships a Pixhawk 1 build, which is what the
 rest of this repo assumes.
 
-> **Verify this yourself.** While writing this repo the ArduPilot website was
-> unreachable from the authoring environment, so the *current* list of features
-> cut from the 1 MB build, and which Copter release is the newest to still
-> publish `Pixhawk1-1M`, was **not confirmed**. Read
-> <https://ardupilot.org/copter/docs/common-limited-firmware.html> and the
-> `Pixhawk1-1M` folder on <https://firmware.ardupilot.org> before you commit
-> to a version. If the latest stable no longer has that build, use the newest
-> release folder that does.
+### What was checked against the source
+
+Read directly from ArduPilot's source at tag **`Copter-4.7.2`** (the newest
+stable Copter tag when this was written), under
+`libraries/AP_HAL_ChibiOS/hwdef/`:
+
+* `Pixhawk1-1M` **still exists** in 4.7.2 (`Pixhawk1-1M/hwdef.dat`).
+* It sets `FLASH_SIZE_KB 1024` and pulls in `include/minimize_features.inc`
+  and `include/minimize_common.inc`, which switch off, among other things:
+  `GUIDED_NOGPS`, `FOLLOW`, `FLOWHOLD`, `ZIGZAG`, `SYSTEMID` and `TURTLE` modes;
+  OSD, MSP and several telemetry protocols; gimbal mounts; the gripper, winch
+  and sprayer; all GPS drivers except u-blox (+ NMEA on this board); all frame
+  types except quad, hexa and octa.
+* **Not** cut: `GUIDED`, `LOITER`, `LAND`, `STABILIZE`, `ALT_HOLD`, analog
+  battery monitoring, MAVLink 2. Everything the demo needs is present.
+  (`AC_NAV_GUIDED`, which is switched off, only gates the `NAV_GUIDED_ENABLE`
+  mission item inside AUTO mode.)
+* It contains `BOARD_CHECK_F427_USE_2M`: **on a real 2 MB chip the 1M firmware
+  stops with "2M flash - use Pixhawk1 firmware".**
+
+### Still not verified
+
+* That this exact build **compiles and fits in 1 MB** at 4.7.2 (it should, as
+  ArduPilot publishes it, but it was not built here).
+* The ArduPilot website's own limited-firmware page and the
+  `firmware.ardupilot.org` listing were unreachable from the authoring
+  environment. Check both before you commit to a version:
+  <https://ardupilot.org/copter/docs/common-limited-firmware.html>.
+  If the latest stable ever drops `Pixhawk1-1M`, use the newest release that
+  still has it.
 
 ## 1. Flash
 
 Use **Mission Planner** (Windows) or **QGroundControl** to install ArduCopter.
 
-* Pick the **`Pixhawk1-1M`** build. It runs on both 1 MB and 2 MB boards; the
-  plain Pixhawk1 build on a 1 MB board causes boot errors and random USB
-  disconnects.
+* **Try `Pixhawk1-1M` first.** If your chip really is 1 MB it just works. If
+  you get `2M flash - use Pixhawk1 firmware`, your chip has the full 2 MB:
+  flash the plain **`Pixhawk1`** build instead. (The reverse mistake, the
+  full build on a 1 MB chip, is the bad one: boot errors and random USB
+  disconnects. That is why 1M goes first.)
 * If your tool picks the build automatically and you want to be explicit,
-  download `arducopter.apj` for `Pixhawk1-1M` from firmware.ardupilot.org and
-  use the tool's *custom firmware* option.
+  download `arducopter.apj` for the build you want from firmware.ardupilot.org
+  and use the tool's *custom firmware* option.
 * Stay on a stable release. Do not use `latest`/beta builds on a 1 MB board;
   they are the ones most likely to be out of flash.
 
@@ -85,9 +109,10 @@ anything.
 
 GUIDED takeoff and position setpoints need a valid EKF position, normally from
 **GPS** (wait for 3D fix, 8+ satellites, "EKF3 IMU0 is using GPS" in the
-messages). Indoors without GPS you need optical flow + rangefinder or an
-external-navigation source; that is a different setup (`GUIDED_NOGPS` and
-attitude control) that this repo does not cover.
+messages). Indoors without GPS you would need optical flow + rangefinder or an
+external-navigation source, and **`GUIDED_NOGPS` and `FLOWHOLD` are compiled
+out of the `Pixhawk1-1M` build**, so on this board treat the demo as
+**outdoor, GPS-only**. This repo does not cover GPS-denied flight.
 
 ## 6. GCS failsafe, deliberately left off
 

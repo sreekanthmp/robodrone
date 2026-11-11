@@ -111,8 +111,8 @@ class OffboardDemo(Node):
         self.create_subscription(
             PoseStamped, f"{ns}/local_position/pose", self._on_pose, qos_profile_sensor_data
         )
-        # Reliable (default) QoS: MAVROS' setpoint subscribers are reliable, and a
-        # best-effort publisher would not connect to them.
+        # MAVROS' setpoint subscriber is BEST_EFFORT (checked with `ros2 topic info -v`
+        # on MAVROS 2.x), so the default RELIABLE publisher is compatible with it.
         self._setpoint_pub = self.create_publisher(
             PoseStamped, f"{ns}/setpoint_position/local", 10
         )

@@ -16,7 +16,6 @@ setup(
     maintainer_email="maintainer@example.com",
     description="MAVROS-based monitoring and guided-flight demo for a Pixhawk/ArduPilot quadcopter.",
     license="TODO: choose a license",
-    tests_require=["pytest"],
     entry_points={
         "console_scripts": [
             "status_monitor = robodrone_control.status_monitor:main",
