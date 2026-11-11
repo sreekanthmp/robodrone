@@ -1,0 +1,51 @@
+# ArduCopter parameters for: Pixhawk 2.4.8 (FMUv2 clone), 10" quad (X frame),
+# companion computer on TELEM2 talking MAVLink 2 to MAVROS.
+#
+# Load with Mission Planner (Config > Full Parameter List > Load from file) or
+# QGroundControl (Vehicle Setup > Parameters > Tools > Load from file).
+#
+# REVIEW EVERY LINE BEFORE LOADING. This is a starting point, not a tune:
+#   * It deliberately does NOT touch calibration (accel, compass, radio, ESC),
+#     PID gains, battery voltage thresholds, or arming checks.
+#   * ARMING_CHECK is left at its default on purpose. Do not disable it to
+#     "make arming work"; read the pre-arm message instead.
+#   * Reboot the flight controller after loading (SERIAL2_* only apply on boot).
+#
+# Format: NAME,value   (lines starting with # are ignored)
+
+# --- Airframe ---------------------------------------------------------------
+FRAME_CLASS,1            # 1 = Quad
+FRAME_TYPE,1             # 1 = X
+
+# --- Companion link: TELEM2 = SERIAL2 --------------------------------------
+SERIAL2_PROTOCOL,2       # 2 = MAVLink 2
+SERIAL2_BAUD,921         # 921 = 921600 baud. Drop to 115 if the link is flaky (long/ratty wires).
+
+# --- Telemetry stream rates on the companion link ---------------------------
+# SRn_* uses the n-th MAVLink port. With USB = SR0, TELEM1 = SR1, TELEM2 = SR2
+# this is correct. If you changed which serial ports speak MAVLink, check which
+# SRn your TELEM2 port got. No data in /mavros/* topics usually means this.
+SR2_RAW_SENS,5
+SR2_EXT_STAT,2
+SR2_RC_CHAN,2
+SR2_POSITION,10
+SR2_EXTRA1,10            # attitude
+SR2_EXTRA2,5             # VFR_HUD
+SR2_EXTRA3,2
+
+# --- Power module (typical 3DR-style analog module) -------------------------
+# Verify against a multimeter. Clones and 6S modules need different scaling.
+BATT_MONITOR,4           # 4 = analog voltage and current
+# BATT_VOLT_MULT,10.1    # <- calibrate: this is the usual 3DR module value
+# BATT_AMP_PERVLT,17.0   # <- calibrate
+
+# --- Failsafes worth having before any autonomous flight --------------------
+FS_THR_ENABLE,3          # RC lost -> Land (works without GPS; use 1 = RTL once GPS is solid)
+FS_GCS_ENABLE,0          # leave off while prototyping; see docs/firmware.md before enabling
+
+# --- Optional geofence (needs GPS lock; uncomment once GPS works) ------------
+# FENCE_ENABLE,1
+# FENCE_TYPE,3           # 1 = max altitude, 2 = circle  ->  3 = both
+# FENCE_ALT_MAX,15
+# FENCE_RADIUS,30
+# FENCE_ACTION,1         # RTL or Land
