@@ -90,6 +90,14 @@ ros2 run robodrone_control offboard_demo --ros-args -p enable_flight:=true
 Expected: `phase: ... -> SET_GUIDED -> ARM -> TAKEOFF_CMD -> CLIMB -> SQUARE ->
 LAND_CMD -> WAIT_DISARM`, then `landed and disarmed` and exit code 0.
 
+**Automated version (written, not yet run end to end):**
+[`scripts/sim_e2e.sh`](../scripts/sim_e2e.sh) is meant to do all of the above
+headless (no MAVProxy, no GUI): start SITL and MAVROS, wait for a position
+estimate, fly the demo, and print `PASS`/`FAIL`. It needs an
+ArduPilot checkout with SITL built (`./waf configure --board sitl && ./waf
+copter`) and, for SITL's own Python dependencies, `SITL_PYTHON` pointing at an
+interpreter that has them (ArduPilot's `install-prereqs-ubuntu.sh` sets that up).
+
 ## On the real vehicle
 
 ```bash

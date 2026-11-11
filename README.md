@@ -30,6 +30,7 @@ Details and the upgrade path to a newer board: [docs/firmware.md](docs/firmware.
 | [ros2_ws/src/robodrone_bringup](ros2_ws/src/robodrone_bringup) | Launch file: MAVROS + monitor |
 | [ros2_ws/src/robodrone_control](ros2_ws/src/robodrone_control) | `status_monitor`, `offboard_demo`, tests |
 | [scripts/sitl.sh](scripts/sitl.sh) | ArduPilot SITL wired to MAVROS (**not yet run**) |
+| [scripts/sim_e2e.sh](scripts/sim_e2e.sh) | Headless SITL + MAVROS + demo test (**written, not yet run**) |
 | [scripts/check_mavros_interfaces.sh](scripts/check_mavros_interfaces.sh) | Checks MAVROS exposes every topic/service the nodes use; needs no FC or simulator |
 | [docker/Dockerfile](docker/Dockerfile) | ROS 2 Jazzy + MAVROS + this workspace |
 
