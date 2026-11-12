@@ -55,6 +55,7 @@ class FakeClient:
         self.ready = True
         self.requests: list = []
         self.futures: list[FakeFuture] = []
+        self.responder = None  # optional: request -> response, answers at once
 
     def service_is_ready(self) -> bool:
         return self.ready
@@ -63,6 +64,8 @@ class FakeClient:
         future = FakeFuture()
         self.requests.append(request)
         self.futures.append(future)
+        if self.responder is not None:
+            future.resolve(self.responder(request))
         return future
 
     def pending(self) -> FakeFuture | None:
@@ -168,6 +171,17 @@ class PoseStamped:
         )
 
 
+class NavSatFix:
+    def __init__(self, latitude=0.0, longitude=0.0, altitude=0.0, status=0):
+        self.latitude, self.longitude, self.altitude = latitude, longitude, altitude
+        self.status = _ns(status=status)  # 0 = fix, -1 = no fix
+
+
+class RCOut:
+    def __init__(self, channels=None):
+        self.channels = list(channels or [])
+
+
 class _Srv:
     class Request:
         def __init__(self) -> None:
@@ -182,6 +196,10 @@ def _srv(name: str, **fields):
 
 SetMode = _srv("SetMode", base_mode=0, custom_mode="")
 CommandBool = _srv("CommandBool", value=False)
+CommandLong = _srv(
+    "CommandLong", broadcast=False, command=0, confirmation=0,
+    param1=0.0, param2=0.0, param3=0.0, param4=0.0, param5=0.0, param6=0.0, param7=0.0,
+)
 StreamRate = _srv("StreamRate", stream_id=0, message_rate=0, on_off=False)
 CommandTOL = _srv(
     "CommandTOL", min_pitch=0.0, yaw=0.0, latitude=0.0, longitude=0.0, altitude=0.0
@@ -214,12 +232,15 @@ def build_modules() -> dict[str, types.ModuleType]:
         "geometry_msgs": mod("geometry_msgs"),
         "geometry_msgs.msg": mod("geometry_msgs.msg", PoseStamped=PoseStamped),
         "mavros_msgs": mod("mavros_msgs"),
-        "mavros_msgs.msg": mod("mavros_msgs.msg", State=State),
+        "sensor_msgs": mod("sensor_msgs"),
+        "sensor_msgs.msg": mod("sensor_msgs.msg", NavSatFix=NavSatFix),
+        "mavros_msgs.msg": mod("mavros_msgs.msg", State=State, RCOut=RCOut),
         "mavros_msgs.srv": mod(
             "mavros_msgs.srv",
             SetMode=SetMode,
             CommandBool=CommandBool,
             CommandTOL=CommandTOL,
+            CommandLong=CommandLong,
             StreamRate=StreamRate,
         ),
     }

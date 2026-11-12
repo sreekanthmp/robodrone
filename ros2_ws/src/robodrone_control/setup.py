@@ -20,6 +20,7 @@ setup(
         "console_scripts": [
             "status_monitor = robodrone_control.status_monitor:main",
             "offboard_demo = robodrone_control.offboard_demo:main",
+            "delivery_mission = robodrone_control.delivery_mission:main",
             "request_stream_rates = robodrone_control.request_stream_rates:main",
         ],
     },
