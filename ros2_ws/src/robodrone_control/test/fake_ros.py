@@ -110,6 +110,7 @@ class FakeNode:
     def __init__(self, name: str) -> None:
         self.node_name = name
         self._params: dict = {}
+        self.descriptors: dict = {}
         self._logger = FakeLogger()
         self._clock = FakeClock()
         self.subscriptions: dict = {}
@@ -117,8 +118,9 @@ class FakeNode:
         self.clients: dict = {}
         self.timer: FakeTimer | None = None
 
-    def declare_parameter(self, name, default):
+    def declare_parameter(self, name, default, descriptor=None):
         self._params[name] = type(self).overrides.get(name, default)
+        self.descriptors[name] = descriptor
 
     def get_parameter(self, name):
         return SimpleNamespace(value=self._params[name])
@@ -169,6 +171,11 @@ class PoseStamped:
             position=_ns(x=0.0, y=0.0, z=0.0),
             orientation=_ns(x=0.0, y=0.0, z=0.0, w=1.0),
         )
+
+
+class ParameterDescriptor:
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
 
 
 class NavSatFix:
@@ -232,6 +239,8 @@ def build_modules() -> dict[str, types.ModuleType]:
         "geometry_msgs": mod("geometry_msgs"),
         "geometry_msgs.msg": mod("geometry_msgs.msg", PoseStamped=PoseStamped),
         "mavros_msgs": mod("mavros_msgs"),
+        "rcl_interfaces": mod("rcl_interfaces"),
+        "rcl_interfaces.msg": mod("rcl_interfaces.msg", ParameterDescriptor=ParameterDescriptor),
         "sensor_msgs": mod("sensor_msgs"),
         "sensor_msgs.msg": mod("sensor_msgs.msg", NavSatFix=NavSatFix),
         "mavros_msgs.msg": mod("mavros_msgs.msg", State=State, RCOut=RCOut),

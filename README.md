@@ -49,7 +49,8 @@ Step-by-step, by hand, and on the real vehicle: [docs/ros2.md](docs/ros2.md).
 **Verified**
 
 * The plain-Python logic and the state machines of `offboard_demo`,
-  `request_stream_rates` and `delivery_mission` pass 121 unit tests
+  `request_stream_rates` and `delivery_mission` pass 142 unit tests (134 need no ROS;
+  8 more use real `rclpy` and run when ROS 2 is installed)
   (`cd ros2_ws/src/robodrone_control && python3 -m pytest`), including
   pilot-override, rejected commands, timeouts, failsafe and Ctrl-C paths. The
   tests were mutation-checked: deliberately breaking the safety logic (e.g.

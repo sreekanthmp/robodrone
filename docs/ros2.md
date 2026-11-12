@@ -193,11 +193,19 @@ python3 -m pip install pytest
 python3 -m pytest
 ```
 
-These need no ROS installation. `test/fake_ros.py` stands in for `rclpy` and
-`mavros_msgs` so the node's state machine runs against a scripted fake
-autopilot that can reject commands, go silent, or hand control to the pilot.
-What the fakes cannot prove: QoS compatibility, real topic names, ArduPilot's
-actual responses. That is what SITL is for.
+Most of these need no ROS installation. `test/fake_ros.py` stands in for
+`rclpy` and `mavros_msgs` so the nodes' state machines run against a scripted
+fake autopilot that can reject commands, go silent, or hand control to the
+pilot. What the fakes cannot prove: QoS compatibility, real topic names,
+ArduPilot's actual responses, and how real `rclpy` treats parameters. That is
+what SITL and `test/test_params_real_rclpy.py` are for; the latter uses real
+`rclpy` and is skipped automatically when ROS 2 isn't installed.
+
+**Parameters accept integers or decimals.** `-p target_north_m:=60` and
+`-p target_north_m:=60.0` both work. (ROS 2 normally rejects an integer for a
+parameter declared with a decimal default and the node crashes at start-up;
+`robodrone_control/params.py` works around that, and a real-`rclpy` test keeps
+it working.)
 
 ## PX4 or a newer board later
 

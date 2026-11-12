@@ -16,6 +16,8 @@ from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import BatteryState, NavSatFix
 
+from robodrone_control import params
+
 # If connected but nothing else arrives, ArduPilot is probably not streaming.
 STREAM_WARN_AFTER_S = 10.0
 
@@ -24,7 +26,7 @@ class StatusMonitor(Node):
     def __init__(self) -> None:
         super().__init__("status_monitor")
         self.declare_parameter("mavros_ns", "/mavros")
-        self.declare_parameter("period", 1.0)
+        params.declare_number(self, "period", 1.0)  # integer or decimal (see params.py)
         ns = str(self.get_parameter("mavros_ns").value).rstrip("/")
 
         self._state: State | None = None
@@ -44,7 +46,7 @@ class StatusMonitor(Node):
         self.create_subscription(
             NavSatFix, f"{ns}/global_position/raw/fix", self._on_fix, qos_profile_sensor_data
         )
-        self.create_timer(float(self.get_parameter("period").value), self._report)
+        self.create_timer(params.number(self, "period"), self._report)
 
     def _now(self) -> float:
         return self.get_clock().now().nanoseconds / 1e9

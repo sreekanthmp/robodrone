@@ -22,6 +22,8 @@ from mavros_msgs.msg import State
 from mavros_msgs.srv import StreamRate
 from rclpy.node import Node
 
+from robodrone_control import params
+
 TICK_S = 1.0
 STUCK_CALL_S = 5.0
 STREAM_ALL = 0
@@ -30,12 +32,12 @@ STREAM_ALL = 0
 class StreamRateRequester(Node):
     def __init__(self) -> None:
         super().__init__("request_stream_rates")
-        self.declare_parameter("rate", 10.0)
-        self.declare_parameter("refresh_period", 30.0)
+        params.declare_number(self, "rate", 10.0)  # integer or decimal (see params.py)
+        params.declare_number(self, "refresh_period", 30.0)
         self.declare_parameter("mavros_ns", "/mavros")
 
-        self._rate = int(round(float(self.get_parameter("rate").value)))
-        self._refresh = float(self.get_parameter("refresh_period").value)
+        self._rate = int(round(params.number(self, "rate")))
+        self._refresh = params.number(self, "refresh_period")
         ns = str(self.get_parameter("mavros_ns").value).rstrip("/")
 
         self._state: State | None = None

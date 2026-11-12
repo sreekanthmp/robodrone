@@ -32,7 +32,7 @@ from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from rclpy.signals import SignalHandlerOptions
 
-from robodrone_control import mission
+from robodrone_control import mission, params
 
 TICK_HZ = 10.0
 MAX_LAND_ATTEMPTS = 3
@@ -66,15 +66,16 @@ class OffboardDemo(Node):
         super().__init__("offboard_demo")
 
         self.declare_parameter("enable_flight", False)
-        self.declare_parameter("takeoff_altitude", 2.0)
-        self.declare_parameter("square_side", 2.0)
-        self.declare_parameter("position_tolerance", 0.3)
-        self.declare_parameter("step_timeout", 30.0)
+        # Numeric parameters accept an integer or a decimal (see params.py).
+        params.declare_number(self, "takeoff_altitude", 2.0)
+        params.declare_number(self, "square_side", 2.0)
+        params.declare_number(self, "position_tolerance", 0.3)
+        params.declare_number(self, "step_timeout", 30.0)
         self.declare_parameter("guided_mode", "GUIDED")
         self.declare_parameter("mavros_ns", "/mavros")
 
         self._enable_flight = bool(self.get_parameter("enable_flight").value)
-        self._timeout = float(self.get_parameter("step_timeout").value)
+        self._timeout = params.number(self, "step_timeout")
         self._guided = str(self.get_parameter("guided_mode").value)
         ns = str(self.get_parameter("mavros_ns").value).rstrip("/")
 
@@ -97,11 +98,11 @@ class OffboardDemo(Node):
         self._limits: mission.DemoLimits | None = None
         try:
             self._limits = mission.validate_limits(
-                self.get_parameter("takeoff_altitude").value,
-                self.get_parameter("square_side").value,
-                self.get_parameter("position_tolerance").value,
+                params.number(self, "takeoff_altitude"),
+                params.number(self, "square_side"),
+                params.number(self, "position_tolerance"),
             )
-        except mission.InvalidParameter as exc:
+        except (mission.InvalidParameter, ValueError) as exc:
             self.get_logger().error(f"bad parameter: {exc}")
             self.failed = True
             self.phase = Phase.ABORTED

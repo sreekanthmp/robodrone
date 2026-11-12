@@ -162,7 +162,7 @@ ArduPilot's home is set before relying on RTL.
 
 ## What has and hasn't been verified
 
-**Unit tests.** 121 tests (no ROS needed) cover the geometry, the limits and
+**Unit tests.** 142 tests (134 need no ROS) cover the geometry, the limits and
 the whole state machine against a fake autopilot. The safety logic was
 mutation-checked: 20 deliberate breakages, such as disabling the pilot
 override, skipping the release confirmation, removing the failsafe, or allowing

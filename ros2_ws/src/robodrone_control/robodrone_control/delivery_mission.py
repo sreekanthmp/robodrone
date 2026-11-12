@@ -45,7 +45,7 @@ from rclpy.qos import qos_profile_sensor_data
 from rclpy.signals import SignalHandlerOptions
 from sensor_msgs.msg import NavSatFix
 
-from robodrone_control import mission
+from robodrone_control import mission, params
 
 TICK_HZ = 10.0
 DISARM_TIMEOUT_S = 300.0          # an RTL can be long
@@ -102,22 +102,26 @@ class DeliveryMission(Node):
 
         nan = float("nan")
         self.declare_parameter("enable_flight", False)
-        self.declare_parameter("target_lat", nan)
-        self.declare_parameter("target_lon", nan)
-        self.declare_parameter("target_north_m", nan)
-        self.declare_parameter("target_east_m", nan)
-        self.declare_parameter("cruise_altitude", 15.0)
-        self.declare_parameter("drop_altitude", 3.0)
-        self.declare_parameter("max_range", 100.0)
-        self.declare_parameter("horizontal_tolerance", 2.0)
-        self.declare_parameter("vertical_tolerance", 0.5)
-        self.declare_parameter("servo_channel", 9)
-        self.declare_parameter("hold_pwm", 1100)
-        self.declare_parameter("release_pwm", 1900)
-        self.declare_parameter("release_time", 2.0)
-        self.declare_parameter("confirm_timeout", 3.0)
-        self.declare_parameter("step_timeout", 60.0)
-        self.declare_parameter("max_flight_time", 600.0)
+        # Numeric parameters accept an integer or a decimal (see params.py).
+        for name, default in (
+            ("target_lat", nan),
+            ("target_lon", nan),
+            ("target_north_m", nan),
+            ("target_east_m", nan),
+            ("cruise_altitude", 15.0),
+            ("drop_altitude", 3.0),
+            ("max_range", 100.0),
+            ("horizontal_tolerance", 2.0),
+            ("vertical_tolerance", 0.5),
+            ("servo_channel", 9),
+            ("hold_pwm", 1100),
+            ("release_pwm", 1900),
+            ("release_time", 2.0),
+            ("confirm_timeout", 3.0),
+            ("step_timeout", 60.0),
+            ("max_flight_time", 600.0),
+        ):
+            params.declare_number(self, name, default)
         self.declare_parameter("failsafe_mode", "RTL")
         self.declare_parameter("guided_mode", "GUIDED")
         self.declare_parameter("mavros_ns", "/mavros")
@@ -125,14 +129,17 @@ class DeliveryMission(Node):
         def p(name):
             return self.get_parameter(name).value
 
+        def num(name):
+            return params.number(self, name)
+
         self._enable_flight = bool(p("enable_flight"))
         self._guided = str(p("guided_mode"))
-        self._timeout = float(p("step_timeout"))
-        self._confirm_timeout = float(p("confirm_timeout"))
-        self._max_flight_time = float(p("max_flight_time"))
         self._failsafe_mode = str(p("failsafe_mode")).upper()
-        self._target_params = (p("target_lat"), p("target_lon"), p("target_north_m"), p("target_east_m"))
         ns = str(p("mavros_ns")).rstrip("/")
+        # Numeric values are read and validated inside the try block below, so a
+        # bad value aborts cleanly with a message instead of crashing.
+        self._timeout = self._confirm_timeout = self._max_flight_time = 0.0
+        self._target_params: tuple[float, float, float, float] = (float("nan"),) * 4
 
         self._state: State | None = None
         self._pos: tuple[float, float, float] | None = None
@@ -161,6 +168,12 @@ class DeliveryMission(Node):
 
         self._limits: mission.DeliveryLimits | None = None
         try:
+            self._timeout = num("step_timeout")
+            self._confirm_timeout = num("confirm_timeout")
+            self._max_flight_time = num("max_flight_time")
+            self._target_params = tuple(
+                num(n) for n in ("target_lat", "target_lon", "target_north_m", "target_east_m")
+            )
             if self._failsafe_mode not in ("RTL", LAND_MODE):
                 raise mission.InvalidParameter("failsafe_mode must be RTL or LAND")
             if not (self._confirm_timeout > 0 and self._timeout > 0 and self._max_flight_time > 0):
@@ -168,17 +181,17 @@ class DeliveryMission(Node):
                     "confirm_timeout, step_timeout and max_flight_time must be positive"
                 )
             self._limits = mission.validate_delivery(
-                p("cruise_altitude"),
-                p("drop_altitude"),
-                p("max_range"),
-                p("horizontal_tolerance"),
-                p("vertical_tolerance"),
-                p("servo_channel"),
-                p("hold_pwm"),
-                p("release_pwm"),
-                p("release_time"),
+                num("cruise_altitude"),
+                num("drop_altitude"),
+                num("max_range"),
+                num("horizontal_tolerance"),
+                num("vertical_tolerance"),
+                params.integer(self, "servo_channel"),
+                params.integer(self, "hold_pwm"),
+                params.integer(self, "release_pwm"),
+                num("release_time"),
             )
-        except mission.InvalidParameter as exc:
+        except (mission.InvalidParameter, ValueError) as exc:
             self.get_logger().error(f"bad parameter: {exc}")
             self.failed = True
             self.phase = Phase.ABORTED
