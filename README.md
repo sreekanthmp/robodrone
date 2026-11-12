@@ -30,7 +30,7 @@ Details and the upgrade path to a newer board: [docs/firmware.md](docs/firmware.
 | [params/](params/pixhawk248_copter_quad.param) | Baseline ArduCopter parameters (review before loading) |
 | [ros2_ws/src/robodrone_bringup](ros2_ws/src/robodrone_bringup) | Launch file: MAVROS + stream requester + monitor |
 | [ros2_ws/src/robodrone_control](ros2_ws/src/robodrone_control) | `delivery_mission`, `offboard_demo`, `request_stream_rates`, `status_monitor`, tests |
-| [scripts/sim_e2e.sh](scripts/sim_e2e.sh) | Headless ArduPilot SITL + MAVROS + flight; prints PASS/FAIL. `MISSION=square` (default) passed live before the `MISSION` option was added; both modes since changed are only stub-tested until re-run |
+| [scripts/sim_e2e.sh](scripts/sim_e2e.sh) | Headless ArduPilot SITL + MAVROS + flight; prints PASS/FAIL. `MISSION=square` (default) or `MISSION=delivery`; **both passed from a cold start** |
 | [scripts/sitl.sh](scripts/sitl.sh) | Interactive SITL with MAVProxy console/map, for use with a ground station (**not yet run**) |
 | [scripts/check_mavros_interfaces.sh](scripts/check_mavros_interfaces.sh) | Checks MAVROS exposes every topic/service the nodes use; needs no FC or simulator |
 | [docker/Dockerfile](docker/Dockerfile) | ROS 2 Jazzy + MAVROS + this workspace |
@@ -39,7 +39,8 @@ Details and the upgrade path to a newer board: [docs/firmware.md](docs/firmware.
 
 ```bash
 # ROS 2 + MAVROS sourced, workspace built, ArduPilot SITL built (see docs/ros2.md)
-scripts/sim_e2e.sh     # starts SITL + MAVROS, flies the demo, prints PASS/FAIL
+scripts/sim_e2e.sh                      # starts SITL + MAVROS, flies the square demo, prints PASS/FAIL
+MISSION=delivery scripts/sim_e2e.sh     # same, but flies the delivery mission (docs/delivery.md)
 ```
 
 Step-by-step, by hand, and on the real vehicle: [docs/ros2.md](docs/ros2.md).

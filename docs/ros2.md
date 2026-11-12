@@ -90,6 +90,10 @@ a cold start in about 70 s. It needs an ArduPilot checkout with SITL built
 a Python that has ArduPilot's dependencies (its `install-prereqs-ubuntu.sh`
 sets that up). Tested against ArduPilot **Copter 4.7.2**.
 
+`MISSION=delivery` (optionally `NORTH=` / `EAST=`, metres from launch) runs the
+delivery mission instead of the square; see [delivery.md](delivery.md). Both
+modes passed from a cold start (square in about 70 s, delivery in about 2 minutes).
+
 ### By hand (same route the script takes; three terminals)
 
 ```bash
