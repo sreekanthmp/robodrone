@@ -25,10 +25,11 @@ Details and the upgrade path to a newer board: [docs/firmware.md](docs/firmware.
 | [docs/hardware.md](docs/hardware.md) | Parts, sizing, wiring (TELEM2 pinout, motor order) |
 | [docs/firmware.md](docs/firmware.md) | Flashing, calibration, parameters, mode switch, failsafes |
 | [docs/ros2.md](docs/ros2.md) | Install, bring-up, simulate, topics, tests |
+| [docs/delivery.md](docs/delivery.md) | The delivery mission: run it, parameters, payload servo, what happens when things fail, limits |
 | [docs/preflight.md](docs/preflight.md) | Staged testing plan and pre-flight checklist |
 | [params/](params/pixhawk248_copter_quad.param) | Baseline ArduCopter parameters (review before loading) |
 | [ros2_ws/src/robodrone_bringup](ros2_ws/src/robodrone_bringup) | Launch file: MAVROS + stream requester + monitor |
-| [ros2_ws/src/robodrone_control](ros2_ws/src/robodrone_control) | `status_monitor`, `offboard_demo`, `request_stream_rates`, tests |
+| [ros2_ws/src/robodrone_control](ros2_ws/src/robodrone_control) | `delivery_mission`, `offboard_demo`, `request_stream_rates`, `status_monitor`, tests |
 | [scripts/sim_e2e.sh](scripts/sim_e2e.sh) | Headless ArduPilot SITL + MAVROS + flight; prints PASS/FAIL. `MISSION=square` (default) passed live before the `MISSION` option was added; both modes since changed are only stub-tested until re-run |
 | [scripts/sitl.sh](scripts/sitl.sh) | Interactive SITL with MAVProxy console/map, for use with a ground station (**not yet run**) |
 | [scripts/check_mavros_interfaces.sh](scripts/check_mavros_interfaces.sh) | Checks MAVROS exposes every topic/service the nodes use; needs no FC or simulator |
@@ -47,12 +48,13 @@ Step-by-step, by hand, and on the real vehicle: [docs/ros2.md](docs/ros2.md).
 
 **Verified**
 
-* The plain-Python logic, the `offboard_demo` state machine and the
-  `request_stream_rates` node pass 42 unit tests
+* The plain-Python logic and the state machines of `offboard_demo`,
+  `request_stream_rates` and `delivery_mission` pass 121 unit tests
   (`cd ros2_ws/src/robodrone_control && python3 -m pytest`), including
-  pilot-override, rejected commands, timeouts, failed-LAND and Ctrl-C paths.
-  The tests were mutation-checked: deliberately breaking the safety logic makes
-  them fail.
+  pilot-override, rejected commands, timeouts, failsafe and Ctrl-C paths. The
+  tests were mutation-checked: deliberately breaking the safety logic (e.g.
+  disabling the pilot override, skipping the release confirmation, allowing
+  motor outputs as the payload servo) makes them fail.
 * **Against ArduPilot SITL (Copter 4.7.2) through real MAVROS**, run from a cold
   start by `scripts/sim_e2e.sh`: the demo goes GUIDED, arms, takes off, flies a
   square, lands, disarms and exits 0. Measured, not just reported: it climbed to
@@ -60,6 +62,13 @@ Step-by-step, by hand, and on the real vehicle: [docs/ros2.md](docs/ros2.md).
   command LAND and the vehicle lands. Leaving GUIDED mid-flight makes it stop
   and send nothing further. This run also found that ArduPilot streams nothing
   to MAVROS unless asked, which is why `request_stream_rates` exists.
+* **The delivery mission against the same SITL**, measured from recordings: it
+  flew 72 m to the target at 15 m altitude, lowered to 3 m, released the payload
+  servo (confirmed from the servo output) 0.02 m from the target, returned and
+  landed 0.01 m from launch. Failure paths also run live: Ctrl-C 35 m out gives
+  RTL and a landing 0.02 m from launch; a pilot mode switch stops it; a rejected
+  release brings the payload home; a rejected latch refuses to arm. Details and
+  the limits of that evidence: [docs/delivery.md](docs/delivery.md).
 * Against a **real ROS 2 Jazzy + MAVROS 2.x** install, with no flight
   controller: both packages build with colcon; the launch file resolves
   MAVROS' `apm.launch`; MAVROS starts; every topic and service the nodes use
@@ -79,13 +88,19 @@ Step-by-step, by hand, and on the real vehicle: [docs/ros2.md](docs/ros2.md).
 * The Dockerfile (never built), `scripts/sitl.sh` (the MAVProxy route), and the
   `SR2_*`/TELEM2 parameter values.
 * That the `Pixhawk1-1M` build compiles and fits in 1 MB at 4.7.2.
+* **Delivery, beyond the simulator:** a real servo and release mechanism, any
+  real flight, GPS noise and wind (SITL has perfect GPS and none), terrain, and
+  battery behaviour on a long route. Also the "release accepted but the output
+  never moved" path, which is unit-tested but cannot be produced in SITL.
 
 Run [Stage 0 of the test plan](docs/preflight.md) in simulation before putting
 props on anything.
 
 ## Safety
 
-The demo flies a real aircraft if you tell it to. It is dry-run by default,
-capped in altitude and size, and yields to the pilot's mode switch, but it is
-**not** a substitute for a pilot with a transmitter in hand, a clear area, and
-the staged plan in [docs/preflight.md](docs/preflight.md).
+The demo and the delivery mission fly a real aircraft if you tell them to. Both
+are dry-run by default, capped in altitude and distance, and yield to the
+pilot's mode switch, but they are **not** a substitute for a pilot with a
+transmitter in hand, a clear area, and the staged plan in
+[docs/preflight.md](docs/preflight.md). Delivering cargo from the air usually
+needs permission: check your local rules first.

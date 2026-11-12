@@ -132,8 +132,10 @@ home, not drop it in a field. RTL uses the autopilot's own settings (notably
 
 "Home" here means two things. The delivery's own return flies back to **the
 point this run started from**. RTL returns to **ArduPilot's home position**.
-They are normally the same place, but if you launch from different spots in one
-session, confirm where ArduPilot's home is before relying on RTL.
+They are normally the same place. In the simulator they were: a flight started
+16 m from the previous one, and RTL brought it back to *that* flight's arming
+point (0.03 m off), not the earlier origin. On a real vehicle, confirm where
+ArduPilot's home is set before relying on RTL.
 
 ## Limits: what it does not do
 
@@ -157,3 +159,38 @@ session, confirm where ArduPilot's home is before relying on RTL.
 * **Rules.** Delivering cargo, flying beyond line of sight or over people, and
   dropping things from the air usually need permission. Check your local
   regulations before any real use.
+
+## What has and hasn't been verified
+
+**Unit tests.** 121 tests (no ROS needed) cover the geometry, the limits and
+the whole state machine against a fake autopilot. The safety logic was
+mutation-checked: 20 deliberate breakages, such as disabling the pilot
+override, skipping the release confirmation, removing the failsafe, or allowing
+motor outputs, were each caught by a failing test.
+
+**Against ArduPilot SITL** (Copter 4.7.2, a full-feature simulator build, not
+the `Pixhawk1-1M` firmware), through real MAVROS, measured from recordings and
+not just log messages:
+
+| Check | Result |
+|---|---|
+| Full delivery, target 60 m N / 40 m E (72.1 m) | Climbed to **15.01 m**; reached **0.00 m** from the target; released at **0.02 m** from it, **3.24 m** up; landed **0.01 m** from the launch point; exit 0 |
+| Latch before arming | Servo reached the hold PWM at t=7.0 s, before arming at 8.3 s |
+| Ctrl-C 35 m out | Commanded RTL; drone flew home and landed **0.02 m** from launch |
+| Pilot switches to LOITER mid-transit | Node stopped, said the pilot took control, mode stayed LOITER, payload never released |
+| Release command rejected mid-flight | Delivery **not** recorded; RTL; landed 0.03 m from that flight's start; exit 1 |
+| Latch command rejected before start | Refused; never reached `SET_GUIDED`; vehicle never armed; exit 1 |
+| `DO_SET_SERVO` vs `SERVOn_FUNCTION` | Accepted for 0 and 1, rejected (`result=4`) for 7 and 33 |
+
+SITL has perfect GPS and no wind, so the position accuracy above is the best
+case. Real GPS wanders by a few metres.
+
+**Not verified:**
+
+* The real Pixhawk 2.4.8, the `Pixhawk1-1M` firmware, a real servo and
+  release mechanism, and any real flight.
+* The "command accepted but the output never moved" path. It is unit-tested,
+  but the simulator always moves the output after an accepted command, so I
+  could not produce it live.
+* Live: the flight-time limit, and the RTL-rejected fallback to LAND.
+* Wind, GPS noise, terrain, battery behaviour over a long route.
